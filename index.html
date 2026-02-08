@@ -200,8 +200,8 @@
 
             filtered.filter(i => i.folder === f).forEach(item => {
                 let visual;
-                if (item.type === 'photo') visual = `<img src="${item.src}" loading="lazy">`;
-                else if (item.type === 'video') visual = `<video src="${item.src}" controls preload="metadata"></video>`;
+                if (item.type === 'photo') visual = `<img src="${item.src}" loading="lazy" crossorigin="anonymous">`;
+                else if (item.type === 'video') visual = `<video src="${item.src}" controls preload="metadata" crossorigin="anonymous"></video>`;
                 else visual = `<div class="doc-icon"><i class="fa-solid fa-file-invoice"></i></div>`;
 
                 let ownerInfo = (currentUser.role === 'admin') 
@@ -303,15 +303,32 @@
     }
 
     /* --- UI HELPERS --- */
-    // Sửa lỗi tải file kép bằng cách dùng thẻ link ảo
-    function downloadFile(url, filename) {
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', filename);
-        link.target = '_blank';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    
+    // HÀM TẢI FILE ĐÃ ĐƯỢC SỬA LẠI ĐỂ ÉP TẢI VỀ
+    async function downloadFile(url, filename) {
+        try {
+            // Thay đổi URL Cloudinary để thêm tham số fl_attachment (giúp ép trình duyệt tải về)
+            let downloadUrl = url;
+            if (url.includes("cloudinary.com")) {
+                downloadUrl = url.replace("/upload/", "/upload/fl_attachment/");
+            }
+
+            const response = await fetch(downloadUrl);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename || "download";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+        } catch (e) {
+            console.error("Lỗi tải file:", e);
+            // Backup: Nếu fetch bị lỗi CORS, mở link trực tiếp trong tab mới
+            window.open(url, '_blank');
+        }
     }
 
     function togglePass(id) {

@@ -2,15 +2,21 @@ const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
 const cloudinary = require('cloudinary').v2;
-const { MongoClient, ObjectId } = require('mongodb'); // Thêm ObjectId
+const { MongoClient, ObjectId } = require('mongodb');
 const fs = require('fs');
 const path = require('path');
 
 const app = express();
-app.use(cors());
+
+// --- SỬA ĐOẠN NÀY: CẤU HÌNH CORS CHI TIẾT ---
+app.use(cors({
+    origin: '*', // Cho phép tất cả các nguồn truy cập
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
-
 app.use(express.static(path.join(__dirname, '.')));
 
 // 1. CẤU HÌNH CLOUDINARY
@@ -59,7 +65,7 @@ app.post('/api/save-link', async (req, res) => {
     try {
         const entry = {
             ...req.body,
-            createdAt: new Date() // Thêm ngày tạo thực tế để dễ quản lý
+            createdAt: new Date()
         };
         const result = await dbCollection.insertOne(entry);
         res.json({ success: true, data: entry, insertedId: result.insertedId });
@@ -68,34 +74,29 @@ app.post('/api/save-link', async (req, res) => {
     }
 });
 
-// API XÓA FILE (ĐÃ SỬA CHUẨN)
+// API XÓA FILE
 app.delete('/api/files/:id', async (req, res) => {
     try {
         const idToDelete = req.params.id;
-        
-        // Cố gắng xóa theo _id của MongoDB trước, sau đó mới thử id tự tạo
         let query = {};
         if (ObjectId.isValid(idToDelete)) {
             query = { _id: new ObjectId(idToDelete) };
         } else {
-            // Nếu không phải ObjectId, thử tìm theo id số (Float) hoặc id chuỗi
             query = { $or: [{ id: parseFloat(idToDelete) }, { id: idToDelete }] };
         }
 
         const result = await dbCollection.deleteOne(query);
-        
         if (result.deletedCount === 1) {
             res.json({ success: true, message: "Xóa thành công" });
         } else {
-            res.status(404).json({ success: false, message: "Không tìm thấy file để xóa" });
+            res.status(404).json({ success: false, message: "Không tìm thấy file" });
         }
     } catch (e) {
-        console.error("Lỗi xóa:", e);
         res.status(500).json({ error: "Lỗi server khi xóa" });
     }
 });
 
-// API Upload cũ (vẫn giữ để dự phòng)
+// API Upload dự phòng
 app.post('/api/upload', upload.array('files'), async (req, res) => {
     try {
         const { folder, type, owner, time } = req.body;
@@ -117,7 +118,7 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
         }
         res.json({ success: true, data: newEntries });
     } catch (error) {
-        res.status(500).json({ error: "Server Render quá tải, hãy thử tải lên trực tiếp." });
+        res.status(500).json({ error: "Lỗi upload server" });
     }
 });
 
