@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRO ARCHIVE | LUXURY MANAGEMENT</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;700;900&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        :root { --bg: #F8F5F0; --gento: #1B3022; --gold: #C5A059; --white: #FFFFFF; --shadow: 0 10px 40px rgba(0,0,0,0.08); }
+        body { background-color: var(--bg); color: var(--gento); font-family: 'Montserrat', sans-serif; margin: 0; padding: 0; }
+        
+        /* Login Overlay */
+        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--gento); z-index: 9999; display: flex; justify-content: center; align-items: center; }
+        .login-box { background: var(--white); padding: 50px; border-radius: 4px; box-shadow: var(--shadow); width: 100%; max-width: 350px; text-align: center; }
+        .login-box h2 { font-family: 'Playfair Display'; margin-bottom: 30px; }
+        .input-group { position: relative; width: 100%; margin-bottom: 20px; }
+        .input-group input { width: 100%; padding: 12px; border: none; border-bottom: 1px solid #ddd; outline: none; box-sizing: border-box; font-family: 'Montserrat'; }
+        .toggle-btn { position: absolute; right: 10px; top: 12px; cursor: pointer; color: #999; }
+        .login-box button { background: var(--gold); color: white; border: none; padding: 12px; cursor: pointer; font-weight: 700; text-transform: uppercase; width: 100%; }
+        
+        /* Modal */
+        #account-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; display: none; justify-content: center; align-items: center; }
+
+        /* Nav & Tabs */
+        nav { background: var(--gento); padding: 25px 60px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; }
+        .logo { font-family: 'Playfair Display'; font-style: italic; color: var(--gold); font-size: 22px; }
+        .nav-links { display: flex; gap: 40px; align-items: center; }
+        .nav-link { color: var(--white); font-size: 11px; font-weight: 700; text-transform: uppercase; cursor: pointer; letter-spacing: 2px; opacity: 0.5; transition: 0.3s; }
+        .nav-link.active { opacity: 1; border-bottom: 2px solid var(--gold); color: var(--gold); }
+        .user-tag { border: 1px solid var(--gold); padding: 5px 15px; border-radius: 20px; color: var(--gold); font-size: 10px; cursor: pointer; }
+
+        /* Control Panel */
+        header { text-align: center; padding: 60px 20px 30px; }
+        header h1 { font-family: 'Playfair Display'; font-size: 48px; margin: 0; }
+        .control-panel { max-width: 900px; margin: 0 auto 50px; background: var(--white); padding: 40px; border-radius: 4px; box-shadow: var(--shadow); }
+        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 20px; }
+        .input-item label { font-size: 10px; font-weight: 900; color: var(--gold); margin-bottom: 8px; display: block; text-transform: uppercase; }
+        input, select { width: 100%; padding: 12px 0; border: none; border-bottom: 1px solid #ddd; outline: none; background: transparent; font-family: 'Montserrat'; }
+        .drop-zone { grid-column: span 2; border: 1px dashed #ccc; padding: 40px; text-align: center; background: #fafafa; cursor: pointer; transition: 0.3s; }
+        
+        /* Progress Bar */
+        #progress-container { grid-column: span 2; margin-top: 15px; display: none; }
+        .progress-bar-bg { width: 100%; height: 4px; background: #eee; border-radius: 10px; margin-top: 5px; }
+        #progress-fill { width: 0%; height: 100%; background: var(--gold); transition: width 0.3s; }
+
+        /* Grid Display */
+        .container { padding: 0 60px 100px; }
+        .folder-group { margin-bottom: 60px; }
+        .folder-title { font-family: 'Playfair Display'; font-size: 28px; margin-bottom: 25px; display: flex; align-items: center; gap: 20px; }
+        .folder-title::after { content: ''; flex: 1; height: 1px; background: rgba(0,0,0,0.1); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 30px; }
+        .card { background: var(--white); position: relative; border: 1px solid #f0f0f0; overflow: hidden; }
+        .visual { height: 300px; display: flex; align-items: center; justify-content: center; background: #fcfcfc; }
+        .visual img, .visual video { width: 100%; height: 100%; object-fit: cover; }
+        .doc-icon { font-size: 50px; color: var(--gold); }
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(27, 48, 34, 0.9); display: flex; justify-content: center; align-items: center; gap: 10px; opacity: 0; transition: 0.3s; }
+        .card:hover .overlay { opacity: 1; }
+        .btn { background: var(--white); color: var(--gento); border: none; padding: 8px 15px; font-size: 9px; font-weight: 700; cursor: pointer; text-transform: uppercase; text-decoration: none; }
+        .btn.del { background: #A20409; color: white; }
+        .meta { padding: 15px; text-align: center; }
+        .meta h4 { margin: 0; font-size: 11px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+<div id="login-overlay">
+    <div class="login-box">
+        <h2>Authentication</h2>
+        <div class="input-group"><input type="text" id="userInp" placeholder="Username"></div>
+        <div class="input-group">
+            <input type="password" id="passInp" placeholder="Password">
+            <i class="fa-solid fa-eye toggle-btn" onclick="togglePass('passInp')"></i>
+        </div>
+        <button onclick="handleLogin()">Login</button>
+        <p id="error-msg" style="color:red; display:none; font-size:10px; margin-top:10px;">Sai tài khoản hoặc mật khẩu!</p>
+    </div>
+</div>
+
+<div id="account-modal">
+    <div class="login-box">
+        <h2>Settings</h2>
+        <div class="input-group"><label>NEW NICKNAME</label><input type="text" id="newNick"></div>
+        <div class="input-group">
+            <label>NEW PASSWORD</label>
+            <input type="password" id="newPass">
+            <i class="fa-solid fa-eye toggle-btn" onclick="togglePass('newPass')"></i>
+        </div>
+        <button onclick="alert('Đã cập nhật!')">Save Changes</button>
+        <button onclick="closeModal()" style="background:#666; margin-top:10px;">Close</button>
+    </div>
+</div>
+
+<div id="main-content" style="display: none;">
+    <nav>
+        <div class="logo">The Archive.</div>
+        <div class="nav-links">
+            <div class="nav-link active" onclick="switchTab('photo', this)">Photos</div>
+            <div class="nav-link" onclick="switchTab('video', this)">Videos</div>
+            <div class="nav-link" onclick="switchTab('work', this)">Documents</div>
+            <div class="nav-link user-tag" id="user-display" onclick="openModal()">User</div>
+            <div class="nav-link" onclick="logout()" style="color:#ff4d4d; opacity:1;">Logout</div>
+        </div>
+    </nav>
+
+    <header><h1 id="tab-title">Digital Heritage</h1></header>
+
+    <div class="control-panel">
+        <div class="config-grid">
+            <div class="input-item"><label>New Collection</label><input type="text" id="newFolderInp" placeholder="Name..."></div>
+            <div class="input-item"><label>Existing Collection</label><select id="existFolderSel" onchange="toggleInp()"><option value="">-- Select --</option></select></div>
+            <div id="drop-zone" class="drop-zone"><p id="drop-text">DRAG & DROP FILES</p><input type="file" id="fileInp" multiple style="display:none"></div>
+            
+            <div id="progress-container">
+                <div style="display:flex; justify-content:space-between; font-size:10px; font-weight:800;">
+                    <span id="status-msg">Processing...</span><span id="percent-text">0%</span>
+                </div>
+                <div class="progress-bar-bg"><div id="progress-fill"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container" id="display-area"></div>
+</div>
+
+<script>
+// Đoạn này giúp code tự hiểu: Nếu chạy ở máy thì dùng localhost, nếu lên web thì dùng link web
+const API_URL = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost' 
+    ? 'http://localhost:5000/api' 
+    : '/api';
+        let currentUser = null;
+    let db = [];
+    let currentTab = 'photo';
+
+    const ACCOUNTS = [
+        { user: "Admin", pass: "Admin789@", role: "admin" },
+        { user: "caothimynu", pass: "mynu1512@", role: "user" },
+        { user: "bong", pass: "bong2907@", role: "user" }
+    ];
+
+    function handleLogin() {
+        const u = document.getElementById('userInp').value;
+        const p = document.getElementById('passInp').value;
+        const found = ACCOUNTS.find(a => a.user === u && a.pass === p);
+        if (found) { currentUser = found; sessionStorage.setItem('user', JSON.stringify(found)); showApp(); }
+        else { document.getElementById('error-msg').style.display = 'block'; }
+    }
+
+    function showApp() {
+        document.getElementById('login-overlay').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+        document.getElementById('user-display').innerText = currentUser.user;
+        loadData();
+    }
+
+    if (sessionStorage.getItem('user')) { currentUser = JSON.parse(sessionStorage.getItem('user')); showApp(); }
+
+    async function loadData() {
+        const res = await fetch(`${API_URL}/files`);
+        db = await res.json();
+        render(); updateSelect();
+    }
+
+    function render() {
+        const area = document.getElementById('display-area');
+        area.innerHTML = '';
+        
+        let filtered = db.filter(i => i.type === currentTab);
+        if (currentUser.role !== 'admin') {
+            filtered = filtered.filter(i => i.owner === currentUser.user);
+        }
+
+        let folders = [...new Set(filtered.map(i => i.folder))];
+        folders.forEach(f => {
+            let section = document.createElement('div');
+            section.className = 'folder-group';
+            section.innerHTML = `<div class="folder-title">${f}</div><div class="grid"></div>`;
+            let grid = section.querySelector('.grid');
+
+            filtered.filter(i => i.folder === f).forEach(item => {
+                let visual;
+                if (item.type === 'photo') visual = `<img src="${item.src}">`;
+                else if (item.type === 'video') visual = `<video src="${item.src}" controls></video>`;
+                else visual = `<div class="doc-icon"><i class="fa-solid fa-file-invoice"></i></div>`;
+
+                // Chỉ hiển thị "BY: NAME" nếu là admin
+                let ownerInfo = (currentUser.role === 'admin') 
+                    ? `<div style="font-size: 9px; color: var(--gold); font-weight: 800; margin-top: 5px;">BY: ${(item.owner || 'Unknown').toUpperCase()}</div>` 
+                    : '';
+
+                grid.innerHTML += `
+                    <div class="card">
+                        <div class="visual">${visual}</div>
+                        <div class="overlay">
+                            <a href="${item.src}" target="_blank" class="btn">Mở</a>
+                            <button class="btn del" onclick="remove(${item.id})">Xóa</button>
+                        </div>
+                        <div class="meta">
+                            <h4>${item.name}</h4>
+                            <span style="font-size: 9px; opacity: 0.6;">${item.time}</span>
+                            ${ownerInfo} 
+                        </div>
+                    </div>`;
+            });
+            area.appendChild(section);
+        });
+    }
+
+    async function handleFiles(files) {
+        let folder = document.getElementById('existFolderSel').value || document.getElementById('newFolderInp').value.trim();
+        if(!folder) return alert("Vui lòng nhập tên mục!");
+
+        const formData = new FormData();
+        formData.append('folder', folder);
+        formData.append('type', currentTab);
+        formData.append('owner', currentUser.user);
+        const now = new Date();
+        formData.append('time', `${now.getHours()}:${now.getMinutes()} - ${now.getDate()}/${now.getMonth()+1}`);
+        for (let file of files) formData.append('files', file);
+
+        const prog = document.getElementById('progress-container');
+        const fill = document.getElementById('progress-fill');
+        const text = document.getElementById('percent-text');
+        prog.style.display = 'block';
+        fill.style.width = '30%'; text.innerText = '30%';
+
+        try {
+            await fetch(`${API_URL}/upload`, { method: 'POST', body: formData });
+            fill.style.width = '100%'; text.innerText = '100%';
+            setTimeout(() => { 
+                prog.style.display = 'none'; 
+                document.getElementById('newFolderInp').value = '';
+                loadData(); 
+            }, 800);
+        } catch (e) {
+            alert("Lỗi upload!");
+            prog.style.display = 'none';
+        }
+    }
+
+    function togglePass(id) {
+        const input = document.getElementById(id);
+        input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    function switchTab(t, el) {
+        currentTab = t;
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        el.classList.add('active');
+        const titles = { photo: 'Digital Heritage', video: 'Motion Pictures', work: 'Business Archive' };
+        document.getElementById('tab-title').innerText = titles[t];
+        render(); updateSelect();
+    }
+
+    async function remove(id) { if(confirm("Xóa file này?")) { await fetch(`${API_URL}/files/${id}`, { method: 'DELETE' }); loadData(); } }
+    function openModal() { document.getElementById('account-modal').style.display='flex'; }
+    function closeModal() { document.getElementById('account-modal').style.display='none'; }
+    function logout() { sessionStorage.clear(); location.reload(); }
+    function toggleInp() { document.getElementById('newFolderInp').disabled = document.getElementById('existFolderSel').value !== ""; }
+    
+    function updateSelect() {
+        const sel = document.getElementById('existFolderSel');
+        let myFiles = currentUser.role === 'admin' ? db : db.filter(i => i.owner === currentUser.user);
+        const folders = [...new Set(myFiles.filter(i => i.type === currentTab).map(i => i.folder))];
+        sel.innerHTML = '<option value="">-- Chọn --</option>' + folders.map(f => `<option value="${f}">${f}</option>`).join('');
+    }
+
+    document.getElementById('drop-zone').onclick = () => document.getElementById('fileInp').click();
+    document.getElementById('fileInp').onchange = (e) => handleFiles(e.target.files);
+</script>
+</body>
+</html>
