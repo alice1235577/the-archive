@@ -126,14 +126,13 @@
 </div>
 
 <script>
-    // URL CỦA SERVER RENDER
+    /* --- CONFIGURATION --- */
     const API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
         ? 'http://localhost:5000/api'
         : 'https://the-archive-lnur.onrender.com/api';
 
-    // CẤU HÌNH CLOUDINARY UPLOAD TRỰC TIẾP
     const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dbfueegov/auto/upload";
-    const UPLOAD_PRESET = "ml_default"; // Đảm bảo bạn đã đặt Unsigned trên Cloudinary
+    const UPLOAD_PRESET = "ml_default";
 
     let currentUser = null;
     let db = [];
@@ -145,12 +144,18 @@
         { user: "bong", pass: "bong2907@", role: "user" }
     ];
 
+    /* --- AUTHENTICATION --- */
     function handleLogin() {
         const u = document.getElementById('userInp').value;
         const p = document.getElementById('passInp').value;
         const found = ACCOUNTS.find(a => a.user === u && a.pass === p);
-        if (found) { currentUser = found; sessionStorage.setItem('user', JSON.stringify(found)); showApp(); }
-        else { document.getElementById('error-msg').style.display = 'block'; }
+        if (found) { 
+            currentUser = found; 
+            sessionStorage.setItem('user', JSON.stringify(found)); 
+            showApp(); 
+        } else { 
+            document.getElementById('error-msg').style.display = 'block'; 
+        }
     }
 
     function showApp() {
@@ -160,32 +165,20 @@
         loadData();
     }
 
-    if (sessionStorage.getItem('user')) { currentUser = JSON.parse(sessionStorage.getItem('user')); showApp(); }
+    if (sessionStorage.getItem('user')) { 
+        currentUser = JSON.parse(sessionStorage.getItem('user')); 
+        showApp(); 
+    }
 
+    /* --- DATA MANAGEMENT --- */
     async function loadData() {
         try {
             const res = await fetch(`${API_URL}/files`);
             db = await res.json();
-            render(); updateSelect();
+            render(); 
+            updateSelect();
         } catch (e) {
             console.error("Lỗi tải dữ liệu:", e);
-        }
-    }
-
-    async function downloadFile(url, filename) {
-        try {
-            const response = await fetch(url);
-            const blob = await response.blob();
-            const blobUrl = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.download = filename || 'file';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(blobUrl);
-        } catch (e) {
-            window.open(url, '_blank');
         }
     }
 
@@ -215,13 +208,14 @@
                     ? `<div style="font-size: 9px; color: var(--gold); font-weight: 800; margin-top: 5px;">BY: ${(item.owner || 'Unknown').toUpperCase()}</div>` 
                     : '';
 
+                // FIX: Sử dụng item._id từ MongoDB
                 grid.innerHTML += `
                     <div class="card">
                         <div class="visual">${visual}</div>
                         <div class="overlay">
                             <a href="${item.src}" target="_blank" class="btn">Mở</a>
                             <button class="btn dl" onclick="downloadFile('${item.src}', '${item.name}')">Tải về</button>
-                            <button class="btn del" onclick="remove('${item._id || item.id}')">Xóa</button>
+                            <button class="btn del" onclick="remove('${item._id}')">Xóa</button>
                         </div>
                         <div class="meta">
                             <h4>${item.name}</h4>
@@ -234,16 +228,33 @@
         });
     }
 
-    // --- HÀM UPLOAD TRỰC TIẾP CLOUDINARY (SỬA LỖI TIMEOUT) ---
+    /* --- ACTIONS --- */
+    async function remove(id) { 
+        if(confirm("Bạn có chắc chắn muốn xóa file này?")) { 
+            try {
+                const res = await fetch(`${API_URL}/files/${id}`, { 
+                    method: 'DELETE' 
+                }); 
+                if (res.ok) {
+                    alert("Đã xóa thành công!");
+                    loadData(); 
+                } else {
+                    alert("Lỗi server khi xóa!");
+                }
+            } catch (e) {
+                alert("Không thể kết nối đến server!");
+            }
+        } 
+    }
+
     async function handleFiles(files) {
         let folder = document.getElementById('existFolderSel').value || document.getElementById('newFolderInp').value.trim();
-        if(!folder) return alert("Vui lòng nhập tên mục!");
+        if(!folder) return alert("Vui lòng chọn hoặc nhập tên Collection!");
 
         const prog = document.getElementById('progress-container');
         const fill = document.getElementById('progress-fill');
         const text = document.getElementById('percent-text');
         const status = document.getElementById('status-msg');
-        
         prog.style.display = 'block';
 
         for (let i = 0; i < files.length; i++) {
@@ -252,24 +263,17 @@
             fill.style.width = '20%'; text.innerText = '20%';
 
             try {
-                // 1. Gửi thẳng file lên Cloudinary
                 const cloudFormData = new FormData();
                 cloudFormData.append('file', file);
                 cloudFormData.append('upload_preset', UPLOAD_PRESET);
                 cloudFormData.append('folder', 'the_archive');
 
-                const cloudRes = await fetch(CLOUDINARY_URL, {
-                    method: 'POST',
-                    body: cloudFormData
-                });
-
-                if (!cloudRes.ok) throw new Error("Cloudinary Error");
+                const cloudRes = await fetch(CLOUDINARY_URL, { method: 'POST', body: cloudFormData });
                 const cloudData = await cloudRes.json();
                 
                 fill.style.width = '70%'; text.innerText = '70%';
-                status.innerText = "SAVING TO DATABASE...";
+                status.innerText = "SAVING...";
 
-                // 2. Lưu thông tin link vào MongoDB qua API /save-link
                 const now = new Date();
                 const serverData = {
                     name: file.name,
@@ -280,17 +284,13 @@
                     time: `${now.getHours()}:${now.getMinutes()} - ${now.getDate()}/${now.getMonth()+1}`
                 };
 
-                const saveRes = await fetch(`${API_URL}/save-link`, {
+                await fetch(`${API_URL}/save-link`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(serverData)
                 });
-
-                if (!saveRes.ok) throw new Error("Database Error");
-
             } catch (e) {
-                console.error(e);
-                alert("Lỗi khi tải file: " + file.name);
+                alert("Lỗi tải file: " + file.name);
             }
         }
 
@@ -301,6 +301,16 @@
             document.getElementById('newFolderInp').value = '';
             loadData(); 
         }, 1000);
+    }
+
+    /* --- UI HELPERS --- */
+    function downloadFile(url, filename) {
+        fetch(url).then(res => res.blob()).then(blob => {
+            const a = document.createElement('a');
+            a.href = window.URL.createObjectURL(blob);
+            a.download = filename;
+            a.click();
+        }).catch(() => window.open(url, '_blank'));
     }
 
     function togglePass(id) {
@@ -315,13 +325,6 @@
         const titles = { photo: 'Digital Heritage', video: 'Motion Pictures', work: 'Business Archive' };
         document.getElementById('tab-title').innerText = titles[t];
         render(); updateSelect();
-    }
-
-    async function remove(id) { 
-        if(confirm("Xóa file này?")) { 
-            await fetch(`${API_URL}/files/${id}`, { method: 'DELETE' }); 
-            loadData(); 
-        } 
     }
 
     function openModal() { document.getElementById('account-modal').style.display='flex'; }
