@@ -41,8 +41,8 @@
         
         /* Progress Bar */
         #progress-container { grid-column: span 2; margin-top: 15px; display: none; }
-        .progress-bar-bg { width: 100%; height: 4px; background: #eee; border-radius: 10px; margin-top: 5px; }
-        #progress-fill { width: 0%; height: 100%; background: var(--gold); transition: width 0.3s; }
+        .progress-bar-bg { width: 100%; height: 6px; background: #eee; border-radius: 10px; margin-top: 5px; overflow: hidden; }
+        #progress-fill { width: 0%; height: 100%; background: var(--gold); transition: width 0.4s ease; }
 
         /* Grid Display */
         .container { padding: 0 60px 100px; }
@@ -50,17 +50,18 @@
         .folder-title { font-family: 'Playfair Display'; font-size: 28px; margin-bottom: 25px; display: flex; align-items: center; gap: 20px; }
         .folder-title::after { content: ''; flex: 1; height: 1px; background: rgba(0,0,0,0.1); }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 30px; }
-        .card { background: var(--white); position: relative; border: 1px solid #f0f0f0; overflow: hidden; }
+        .card { background: var(--white); position: relative; border: 1px solid #f0f0f0; overflow: hidden; transition: transform 0.3s; }
+        .card:hover { transform: translateY(-5px); }
         .visual { height: 300px; display: flex; align-items: center; justify-content: center; background: #fcfcfc; }
         .visual img, .visual video { width: 100%; height: 100%; object-fit: cover; }
         .doc-icon { font-size: 50px; color: var(--gold); }
         .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(27, 48, 34, 0.9); display: flex; justify-content: center; align-items: center; gap: 10px; opacity: 0; transition: 0.3s; }
         .card:hover .overlay { opacity: 1; }
-        .btn { background: var(--white); color: var(--gento); border: none; padding: 8px 15px; font-size: 9px; font-weight: 700; cursor: pointer; text-transform: uppercase; text-decoration: none; }
+        .btn { background: var(--white); color: var(--gento); border: none; padding: 8px 15px; font-size: 9px; font-weight: 700; cursor: pointer; text-transform: uppercase; text-decoration: none; display: inline-block; }
         .btn.del { background: #A20409; color: white; }
         .btn.dl { background: var(--gold); color: white; }
         .meta { padding: 15px; text-align: center; }
-        .meta h4 { margin: 0; font-size: 11px; text-transform: uppercase; }
+        .meta h4 { margin: 0; font-size: 11px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>
 </head>
 <body>
@@ -114,7 +115,7 @@
             
             <div id="progress-container">
                 <div style="display:flex; justify-content:space-between; font-size:10px; font-weight:800;">
-                    <span id="status-msg">Processing...</span><span id="percent-text">0%</span>
+                    <span id="status-msg">READY TO UPLOAD</span><span id="percent-text">0%</span>
                 </div>
                 <div class="progress-bar-bg"><div id="progress-fill"></div></div>
             </div>
@@ -125,9 +126,14 @@
 </div>
 
 <script>
+    // URL CỦA SERVER RENDER
     const API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
         ? 'http://localhost:5000/api'
         : 'https://the-archive-lnur.onrender.com/api';
+
+    // CẤU HÌNH CLOUDINARY UPLOAD TRỰC TIẾP
+    const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dbfueegov/auto/upload";
+    const UPLOAD_PRESET = "ml_default"; // Đảm bảo bạn đã đặt Unsigned trên Cloudinary
 
     let currentUser = null;
     let db = [];
@@ -166,7 +172,6 @@
         }
     }
 
-    // HÀM TẢI FILE XUỐNG
     async function downloadFile(url, filename) {
         try {
             const response = await fetch(url);
@@ -174,14 +179,13 @@
             const blobUrl = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = blobUrl;
-            a.download = filename || 'downloaded-file';
+            a.download = filename || 'file';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             window.URL.revokeObjectURL(blobUrl);
         } catch (e) {
-            console.error("Lỗi tải file:", e);
-            window.open(url, '_blank'); // Backup: mở trong tab mới nếu lỗi
+            window.open(url, '_blank');
         }
     }
 
@@ -203,8 +207,8 @@
 
             filtered.filter(i => i.folder === f).forEach(item => {
                 let visual;
-                if (item.type === 'photo') visual = `<img src="${item.src}">`;
-                else if (item.type === 'video') visual = `<video src="${item.src}" controls></video>`;
+                if (item.type === 'photo') visual = `<img src="${item.src}" loading="lazy">`;
+                else if (item.type === 'video') visual = `<video src="${item.src}" controls preload="metadata"></video>`;
                 else visual = `<div class="doc-icon"><i class="fa-solid fa-file-invoice"></i></div>`;
 
                 let ownerInfo = (currentUser.role === 'admin') 
@@ -230,36 +234,73 @@
         });
     }
 
+    // --- HÀM UPLOAD TRỰC TIẾP CLOUDINARY (SỬA LỖI TIMEOUT) ---
     async function handleFiles(files) {
         let folder = document.getElementById('existFolderSel').value || document.getElementById('newFolderInp').value.trim();
         if(!folder) return alert("Vui lòng nhập tên mục!");
 
-        const formData = new FormData();
-        formData.append('folder', folder);
-        formData.append('type', currentTab);
-        formData.append('owner', currentUser.user);
-        const now = new Date();
-        formData.append('time', `${now.getHours()}:${now.getMinutes()} - ${now.getDate()}/${now.getMonth()+1}`);
-        for (let file of files) formData.append('files', file);
-
         const prog = document.getElementById('progress-container');
         const fill = document.getElementById('progress-fill');
         const text = document.getElementById('percent-text');
+        const status = document.getElementById('status-msg');
+        
         prog.style.display = 'block';
-        fill.style.width = '30%'; text.innerText = '30%';
 
-        try {
-            await fetch(`${API_URL}/upload`, { method: 'POST', body: formData });
-            fill.style.width = '100%'; text.innerText = '100%';
-            setTimeout(() => { 
-                prog.style.display = 'none'; 
-                document.getElementById('newFolderInp').value = '';
-                loadData(); 
-            }, 800);
-        } catch (e) {
-            alert("Lỗi upload!");
-            prog.style.display = 'none';
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            status.innerText = `UPLOADING: ${file.name.toUpperCase()}`;
+            fill.style.width = '20%'; text.innerText = '20%';
+
+            try {
+                // 1. Gửi thẳng file lên Cloudinary
+                const cloudFormData = new FormData();
+                cloudFormData.append('file', file);
+                cloudFormData.append('upload_preset', UPLOAD_PRESET);
+                cloudFormData.append('folder', 'the_archive');
+
+                const cloudRes = await fetch(CLOUDINARY_URL, {
+                    method: 'POST',
+                    body: cloudFormData
+                });
+
+                if (!cloudRes.ok) throw new Error("Cloudinary Error");
+                const cloudData = await cloudRes.json();
+                
+                fill.style.width = '70%'; text.innerText = '70%';
+                status.innerText = "SAVING TO DATABASE...";
+
+                // 2. Lưu thông tin link vào MongoDB qua API /save-link
+                const now = new Date();
+                const serverData = {
+                    name: file.name,
+                    src: cloudData.secure_url,
+                    type: currentTab,
+                    folder: folder,
+                    owner: currentUser.user,
+                    time: `${now.getHours()}:${now.getMinutes()} - ${now.getDate()}/${now.getMonth()+1}`
+                };
+
+                const saveRes = await fetch(`${API_URL}/save-link`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(serverData)
+                });
+
+                if (!saveRes.ok) throw new Error("Database Error");
+
+            } catch (e) {
+                console.error(e);
+                alert("Lỗi khi tải file: " + file.name);
+            }
         }
+
+        fill.style.width = '100%'; text.innerText = '100%';
+        status.innerText = "COMPLETE";
+        setTimeout(() => { 
+            prog.style.display = 'none'; 
+            document.getElementById('newFolderInp').value = '';
+            loadData(); 
+        }, 1000);
     }
 
     function togglePass(id) {
@@ -292,7 +333,7 @@
         const sel = document.getElementById('existFolderSel');
         let myFiles = currentUser.role === 'admin' ? db : db.filter(i => i.owner === currentUser.user);
         const folders = [...new Set(myFiles.filter(i => i.type === currentTab).map(i => i.folder))];
-        sel.innerHTML = '<option value="">-- Chọn --</option>' + folders.map(f => `<option value="${f}">${f}</option>`).join('');
+        sel.innerHTML = '<option value="">-- Select --</option>' + folders.map(f => `<option value="${f}">${f}</option>`).join('');
     }
 
     document.getElementById('drop-zone').onclick = () => document.getElementById('fileInp').click();
