@@ -4,13 +4,13 @@ const cors = require('cors');
 const cloudinary = require('cloudinary').v2;
 const { MongoClient } = require('mongodb');
 const fs = require('fs');
-const path = require('path'); // Đưa lên đầu cho đúng chuẩn
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- CẤU HÌNH PHỤC VỤ FILE HTML (Sửa lỗi Cannot GET /) ---
+// --- PHỤC VỤ FILE HTML ---
 app.use(express.static(path.join(__dirname, '.')));
 
 // 1. CẤU HÌNH CLOUDINARY
@@ -38,14 +38,12 @@ connectDB();
 
 const upload = multer({ dest: 'uploads/' });
 
-// --- CÁC API HỆ THỐNG ---
+// --- API HỆ THỐNG ---
 
-// API trả về giao diện index.html khi vào link gốc
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// API lấy danh sách file
 app.get('/api/files', async (req, res) => {
     try {
         const files = await dbCollection.find({}).toArray();
@@ -55,18 +53,15 @@ app.get('/api/files', async (req, res) => {
     }
 });
 
-// API Upload
 app.post('/api/upload', upload.array('files'), async (req, res) => {
     try {
         const { folder, type, owner, time } = req.body;
         const newEntries = [];
-
         for (let file of req.files) {
             const result = await cloudinary.uploader.upload(file.path, {
                 resource_type: "auto",
                 folder: "the_archive"
             });
-
             const entry = {
                 id: Date.now() + Math.random(),
                 name: file.originalname,
@@ -76,22 +71,18 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
                 owner,
                 time
             };
-            
             await dbCollection.insertOne(entry);
             newEntries.push(entry);
             if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
         }
         res.json({ success: true, data: newEntries });
     } catch (error) {
-        console.error(error);
         res.status(500).json({ error: "Lỗi upload" });
     }
 });
 
-// API Xóa
 app.delete('/api/files/:id', async (req, res) => {
     try {
-        // Xóa theo cả id số và id MongoDB để đảm bảo chắc chắn xóa được
         const idToDelete = req.params.id;
         await dbCollection.deleteOne({ 
             $or: [

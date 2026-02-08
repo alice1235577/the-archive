@@ -58,6 +58,7 @@
         .card:hover .overlay { opacity: 1; }
         .btn { background: var(--white); color: var(--gento); border: none; padding: 8px 15px; font-size: 9px; font-weight: 700; cursor: pointer; text-transform: uppercase; text-decoration: none; }
         .btn.del { background: #A20409; color: white; }
+        .btn.dl { background: var(--gold); color: white; }
         .meta { padding: 15px; text-align: center; }
         .meta h4 { margin: 0; font-size: 11px; text-transform: uppercase; }
     </style>
@@ -124,7 +125,6 @@
 </div>
 
 <script>
-    // --- PHẦN ĐÃ SỬA: ĐỊA CHỈ API CỐ ĐỊNH ---
     const API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
         ? 'http://localhost:5000/api'
         : 'https://the-archive-lnur.onrender.com/api';
@@ -166,6 +166,25 @@
         }
     }
 
+    // HÀM TẢI FILE XUỐNG
+    async function downloadFile(url, filename) {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename || 'downloaded-file';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(blobUrl);
+        } catch (e) {
+            console.error("Lỗi tải file:", e);
+            window.open(url, '_blank'); // Backup: mở trong tab mới nếu lỗi
+        }
+    }
+
     function render() {
         const area = document.getElementById('display-area');
         area.innerHTML = '';
@@ -197,6 +216,7 @@
                         <div class="visual">${visual}</div>
                         <div class="overlay">
                             <a href="${item.src}" target="_blank" class="btn">Mở</a>
+                            <button class="btn dl" onclick="downloadFile('${item.src}', '${item.name}')">Tải về</button>
                             <button class="btn del" onclick="remove('${item._id || item.id}')">Xóa</button>
                         </div>
                         <div class="meta">
