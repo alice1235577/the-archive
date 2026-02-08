@@ -2,12 +2,16 @@ const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
 const cloudinary = require('cloudinary').v2;
-const { MongoClient } = require('mongodb'); // Thêm dòng này
+const { MongoClient } = require('mongodb');
 const fs = require('fs');
+const path = require('path'); // Đưa lên đầu cho đúng chuẩn
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// --- CẤU HÌNH PHỤC VỤ FILE HTML (Sửa lỗi Cannot GET /) ---
+app.use(express.static(path.join(__dirname, '.')));
 
 // 1. CẤU HÌNH CLOUDINARY
 cloudinary.config({ 
@@ -16,7 +20,7 @@ cloudinary.config({
   api_secret: 'cZfEHMG6bSk0_UbcJIhZXd-9Zpk' 
 });
 
-// 2. CẤU HÌNH MONGODB (Dùng URI bạn vừa gửi)
+// 2. CẤU HÌNH MONGODB
 const uri = "mongodb+srv://maihoa29072005_db_user:1pzXdX8aUd6xaoGv@cluster0.12eyuyw.mongodb.net/TheArchive?retryWrites=true&w=majority&appName=Cluster0";
 const client = new MongoClient(uri);
 let dbCollection;
@@ -34,7 +38,14 @@ connectDB();
 
 const upload = multer({ dest: 'uploads/' });
 
-// 3. API LẤY DANH SÁCH FILE (Lấy từ MongoDB)
+// --- CÁC API HỆ THỐNG ---
+
+// API trả về giao diện index.html khi vào link gốc
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// API lấy danh sách file
 app.get('/api/files', async (req, res) => {
     try {
         const files = await dbCollection.find({}).toArray();
@@ -44,7 +55,7 @@ app.get('/api/files', async (req, res) => {
     }
 });
 
-// 4. API UPLOAD (Lên Cloudinary & Lưu vào MongoDB)
+// API Upload
 app.post('/api/upload', upload.array('files'), async (req, res) => {
     try {
         const { folder, type, owner, time } = req.body;
@@ -66,7 +77,7 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
                 time
             };
             
-            await dbCollection.insertOne(entry); // Lưu vào MongoDB
+            await dbCollection.insertOne(entry);
             newEntries.push(entry);
             if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
         }
@@ -77,10 +88,17 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
     }
 });
 
-// 5. API XÓA
+// API Xóa
 app.delete('/api/files/:id', async (req, res) => {
     try {
-        await dbCollection.deleteOne({ id: parseFloat(req.params.id) });
+        // Xóa theo cả id số và id MongoDB để đảm bảo chắc chắn xóa được
+        const idToDelete = req.params.id;
+        await dbCollection.deleteOne({ 
+            $or: [
+                { id: parseFloat(idToDelete) },
+                { id: idToDelete }
+            ]
+        });
         res.json({ success: true });
     } catch (e) {
         res.status(500).send(e);
@@ -88,4 +106,4 @@ app.delete('/api/files/:id', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
