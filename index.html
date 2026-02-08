@@ -208,7 +208,6 @@
                     ? `<div style="font-size: 9px; color: var(--gold); font-weight: 800; margin-top: 5px;">BY: ${(item.owner || 'Unknown').toUpperCase()}</div>` 
                     : '';
 
-                // FIX: Sử dụng item._id từ MongoDB
                 grid.innerHTML += `
                     <div class="card">
                         <div class="visual">${visual}</div>
@@ -304,13 +303,15 @@
     }
 
     /* --- UI HELPERS --- */
+    // Sửa lỗi tải file kép bằng cách dùng thẻ link ảo
     function downloadFile(url, filename) {
-        fetch(url).then(res => res.blob()).then(blob => {
-            const a = document.createElement('a');
-            a.href = window.URL.createObjectURL(blob);
-            a.download = filename;
-            a.click();
-        }).catch(() => window.open(url, '_blank'));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename);
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
     function togglePass(id) {
@@ -334,7 +335,7 @@
     
     function updateSelect() {
         const sel = document.getElementById('existFolderSel');
-        let myFiles = currentUser.role === 'admin' ? db : db.filter(i => i.owner === currentUser.user);
+        let myFiles = currentUser ? (currentUser.role === 'admin' ? db : db.filter(i => i.owner === currentUser.user)) : [];
         const folders = [...new Set(myFiles.filter(i => i.type === currentTab).map(i => i.folder))];
         sel.innerHTML = '<option value="">-- Select --</option>' + folders.map(f => `<option value="${f}">${f}</option>`).join('');
     }
